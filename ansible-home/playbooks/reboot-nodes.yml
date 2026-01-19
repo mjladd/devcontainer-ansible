@@ -1,0 +1,23 @@
+---
+- name: Reboot managed nodes
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Reboot these servers
+      reboot:
+        msg: "Reboot initiaated by Ansible"
+        reboot_timeout: 600
+
+    - name: Wait for server to become reachable
+      wait_for_connection:
+        delay: 60
+        timeout: 300
+
+    - name: Verify that systems are back online
+      command: uptime
+      register: uptime_output
+
+    - name: Display uptime
+      debug:
+        msg: "System uptime: {{ uptime_output.stdout}}"
+

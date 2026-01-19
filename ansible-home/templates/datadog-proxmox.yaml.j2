@@ -1,0 +1,15 @@
+api_key: {{ datadog_api_key }}
+site: {{ datadog_site }}
+hostname: {{ inventory_hostname }}
+
+tags:
+{% for tag in datadog_tags %}
+  - {{ tag }}
+{% endfor %}
+
+log_level: info
+logs_enabled: true
+
+# Process monitoring
+process_config:
+  enabled: 'true'

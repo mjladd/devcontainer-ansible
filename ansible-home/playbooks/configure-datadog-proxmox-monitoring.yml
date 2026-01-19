@@ -1,0 +1,254 @@
+---
+- name: Configure Datadog Proxmox-specific monitoring
+  hosts: proxmox
+  become: yes
+
+  vars:
+    datadog_conf_dir: /etc/datadog-agent/conf.d
+
+  tasks:
+    - name: Ensure Datadog agent is installed
+      stat:
+        path: /etc/datadog-agent/datadog.yaml
+      register: datadog_installed
+      failed_when: not datadog_installed.stat.exists
+
+    - name: Create conf.d subdirectories
+      file:
+        path: "{{ datadog_conf_dir }}/{{ item }}.d"
+        state: directory
+        owner: dd-agent
+        group: dd-agent
+        mode: '0755'
+      loop:
+        - disk
+        - network
+        - process
+        - directory
+
+    - name: Configure disk monitoring
+      copy:
+        content: |
+          init_config:
+
+          instances:
+            - use_mount: false
+              excluded_filesystems:
+                - tmpfs
+                - devtmpfs
+                - overlay
+              excluded_disk_re: "loop[0-9]+"
+              tags:
+                - role:proxmox
+                - storage:local
+        dest: "{{ datadog_conf_dir }}/disk.d/conf.yaml"
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      notify: restart datadog-agent
+
+    - name: Configure network monitoring
+      copy:
+        content: |
+          init_config:
+
+          instances:
+            - collect_connection_state: true
+              collect_connection_queues: true
+              excluded_interfaces:
+                - lo
+              tags:
+                - role:proxmox
+                - network:hypervisor
+        dest: "{{ datadog_conf_dir }}/network.d/conf.yaml"
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      notify: restart datadog-agent
+
+    - name: Configure Proxmox process monitoring
+      copy:
+        content: |
+          init_config:
+
+          instances:
+            - name: pve-cluster
+              search_string: ['pve-cluster']
+              exact_match: false
+              tags:
+                - service:proxmox-cluster
+
+            - name: pvedaemon
+              search_string: ['pvedaemon']
+              exact_match: false
+              tags:
+                - service:proxmox-daemon
+
+            - name: pveproxy
+              search_string: ['pveproxy']
+              exact_match: false
+              tags:
+                - service:proxmox-proxy
+
+            - name: pvestatd
+              search_string: ['pvestatd']
+              exact_match: false
+              tags:
+                - service:proxmox-statd
+
+            - name: pve-firewall
+              search_string: ['pve-firewall']
+              exact_match: false
+              tags:
+                - service:proxmox-firewall
+
+            - name: pvesr
+              search_string: ['pvesr']
+              exact_match: false
+              tags:
+                - service:proxmox-replication
+        dest: "{{ datadog_conf_dir }}/process.d/conf.yaml"
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      notify: restart datadog-agent
+
+    - name: Configure Proxmox storage monitoring
+      copy:
+        content: |
+          init_config:
+
+          instances:
+            - directory: /var/lib/vz
+              name: "proxmox_storage"
+              pattern: "*"
+              recursive: true
+              countonly: false
+              tags:
+                - storage:proxmox-vz
+                - role:proxmox
+
+            - directory: /var/lib/vz/images
+              name: "proxmox_vm_images"
+              pattern: "*.qcow2"
+              recursive: true
+              dirtagname: vm_storage
+              tags:
+                - storage:vm-images
+                - role:proxmox
+
+            - directory: /var/lib/vz/template/iso
+              name: "proxmox_iso_storage"
+              pattern: "*.iso"
+              recursive: false
+              dirtagname: iso_storage
+              tags:
+                - storage:iso-templates
+                - role:proxmox
+        dest: "{{ datadog_conf_dir }}/directory.d/conf.yaml"
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      notify: restart datadog-agent
+
+    - name: Enable system core checks
+      copy:
+        content: |
+          init_config:
+
+          instances:
+            - min_collection_interval: 30
+              tags:
+                - role:proxmox
+        dest: "{{ datadog_conf_dir }}/{{ item }}.d/conf.yaml"
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      loop:
+        - cpu
+        - memory
+        - io
+      notify: restart datadog-agent
+
+    - name: Configure custom Proxmox metrics collection script
+      copy:
+        content: |
+          #!/bin/bash
+          # Custom script to collect Proxmox-specific metrics
+
+          # Get VM count
+          VM_COUNT=$(qm list | grep -c running || echo 0)
+
+          # Get container count
+          CT_COUNT=$(pct list | grep -c running || echo 0)
+
+          # Get cluster status (if in cluster)
+          CLUSTER_NODES=$(pvecm nodes 2>/dev/null | grep -c "^[0-9]" || echo 1)
+
+          # Send metrics to Datadog via DogStatsD
+          echo "proxmox.vms.running:${VM_COUNT}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+          echo "proxmox.containers.running:${CT_COUNT}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+          echo "proxmox.cluster.nodes:${CLUSTER_NODES}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+        dest: /usr/local/bin/datadog-proxmox-metrics.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create cron job for custom metrics
+      cron:
+        name: "Datadog Proxmox custom metrics"
+        minute: "*/5"
+        job: "/usr/local/bin/datadog-proxmox-metrics.sh"
+        user: root
+
+    - name: Enable DogStatsD in Datadog config
+      lineinfile:
+        path: /etc/datadog-agent/datadog.yaml
+        regexp: '^use_dogstatsd:'
+        line: 'use_dogstatsd: true'
+      notify: restart datadog-agent
+
+    - name: Enable DogStatsD non-local traffic (if needed for VMs)
+      lineinfile:
+        path: /etc/datadog-agent/datadog.yaml
+        regexp: '^dogstatsd_non_local_traffic:'
+        line: 'dogstatsd_non_local_traffic: false'
+        insertafter: '^use_dogstatsd:'
+      notify: restart datadog-agent
+
+    - name: Restart Datadog agent if not already notified
+      meta: flush_handlers
+
+    - name: Wait for Datadog agent to be ready
+      wait_for:
+        timeout: 15
+
+    - name: Verify Datadog checks are running
+      command: datadog-agent status
+      register: agent_status
+      changed_when: false
+
+    - name: Parse and display running checks
+      shell: datadog-agent status | grep -A 20 "Checks"
+      register: checks_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display monitoring configuration summary
+      debug:
+        msg:
+          - "========== Proxmox Monitoring Configuration =========="
+          - "Disk monitoring: Enabled"
+          - "Network monitoring: Enabled"
+          - "Proxmox process monitoring: Enabled"
+          - "Storage monitoring: Enabled"
+          - "Custom metrics collection: Enabled (every 5 minutes)"
+          - ""
+          - "Running checks:"
+          - "{{ checks_status.stdout_lines }}"
+
+  handlers:
+    - name: restart datadog-agent
+      systemd:
+        name: datadog-agent
+        state: restarted

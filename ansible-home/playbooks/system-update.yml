@@ -1,0 +1,79 @@
+---
+- name: System Update
+  hosts: servers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: check available disk space
+      shell: df -h / | tail -1 | awk '{print $5}' | sed 's/%//'
+      register: disk_usage
+      changed_when: false
+
+    - name: Display current disk usage
+      debug:
+        msg: "Current disk usage is {{ disk_usage.stdout }}%"
+
+    - name: Fail if disk usage is critically low
+      fail:
+        msg: "Disk usage is {{disk_usage.stdout}}% - too high for safe updates"
+      when: disk_usage.stdout | int > 90
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Check for available updates
+      shell: apt list --upgradable 2>/dev/null | grep -v "Listing..." | wc -l
+      register: updates_available
+
+    - name: Display number of updates available
+      debug:
+        msg: "{{ updates_available.stdout}} packages can be updated on {{ inventory_hostname}}"
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      register: upgrade_result
+      when: updates_available.stdout | int > 0
+
+    - name: List upgraded packages
+      shell: grep "Upgrade:" /var/log/apt/history.log | tail -1
+      register: upgrade_packages
+      changed_when: false
+      when: upgrade_result.changed
+
+    - name: Show upgraded packages
+      debug:
+        msg: "{{ upgraded_packages.stdout }}"
+      when: upgrade_result.changed and upgraded_packages.stdout is defined
+
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Read reboot reason
+      command: cat /var/run/reboot-required.pkgs
+      register: reboot_packages
+      when: reboot_required.stat.exists
+      changed_when: false
+
+    - name: Display reboot requirement
+      debug:
+        msg:
+          - "Reboot required on {{ inventory_hostname }}"
+          - "packages requiring reboot: {{ reboot_packages.stdout_lines }}"
+      when: reboot_required.stat.exists
+
+    - name: Generate update summary
+      debug:
+        msg:
+          - "===== Update Summary for {{ inventory_hostname }} ======"
+          - "Updates available: {{ updates_available.stdout}}"
+          - "System updated: {{ update_result.changed | default(false) }}"
+          - "Reboot required: {{ reboot_required.stat.exists }}"
+          - "Disk usage: {{ disk_usage.stdout }}%"

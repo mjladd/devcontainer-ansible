@@ -1,0 +1,154 @@
+---
+- name: Configure advanced Datadog Proxmox monitoring with API
+  hosts: proxmox
+  become: yes
+
+  vars:
+    datadog_conf_dir: /etc/datadog-agent/conf.d
+    proxmox_api_user: "monitoring@pve"
+    proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') | default('') }}"
+    proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') | default('') }}"
+    enable_vm_monitoring: true
+    enable_storage_monitoring: true
+    enable_cluster_monitoring: true
+
+  tasks:
+    - name: Install required Python packages for Proxmox API
+      apt:
+        name:
+          - python3-pip
+          - python3-requests
+        state: present
+
+    - name: Install proxmoxer Python library
+      pip:
+        name: proxmoxer
+        state: present
+        extra_args: "--break-system-packages"
+
+    - name: Create Proxmox monitoring user (if using password)
+      shell: |
+        pveum user add {{ proxmox_api_user }} --comment "Datadog monitoring"
+        pveum acl modify / -user {{ proxmox_api_user }} -role PVEAuditor
+      register: user_creation
+      failed_when: false
+      changed_when: "'already exists' not in user_creation.stderr"
+      when: proxmox_api_token_id == ""
+
+    - name: Create custom Proxmox metrics collection script with API
+      template:
+        src: ../templates/datadog-proxmox-api-metrics.sh.j2
+        dest: /usr/local/bin/datadog-proxmox-api-metrics.sh
+        owner: root
+        group: root
+        mode: '0755'
+      when: enable_vm_monitoring
+
+    - name: Configure all Proxmox checks
+      include_tasks: configure-proxmox-checks.yml
+
+    - name: Set up VM-specific monitoring
+      copy:
+        content: |
+          #!/usr/bin/env python3
+          import json
+          import subprocess
+          from proxmoxer import ProxmoxAPI
+
+          # Connect to local Proxmox
+          proxmox = ProxmoxAPI('localhost', user='root@pam', backend='ssh_paramiko')
+
+          # Get all VMs
+          for vm in proxmox.nodes('{{ inventory_hostname }}').qemu.get():
+              vm_id = vm['vmid']
+              vm_name = vm['name']
+              vm_status = vm['status']
+
+              # Send metrics to DogStatsD
+              metric_prefix = f"proxmox.vm.{vm_id}"
+              tags = f"vm_name:{vm_name},vm_id:{vm_id},status:{vm_status}"
+
+              # VM status (1 for running, 0 for stopped)
+              status_value = 1 if vm_status == 'running' else 0
+              subprocess.run([
+                  'echo',
+                  f'{metric_prefix}.status:{status_value}|g|#{tags}',
+                  '|', 'nc', '-u', '-w1', 'localhost', '8125'
+              ], shell=True)
+
+              # Get detailed stats if running
+              if vm_status == 'running':
+                  stats = proxmox.nodes('{{ inventory_hostname }}').qemu(vm_id).status.current.get()
+                  cpu = stats.get('cpu', 0) * 100
+                  mem = stats.get('mem', 0)
+
+                  subprocess.run([
+                      'echo',
+                      f'{metric_prefix}.cpu:{cpu}|g|#{tags}',
+                      '|', 'nc', '-u', '-w1', 'localhost', '8125'
+                  ], shell=True)
+
+                  subprocess.run([
+                      'echo',
+                      f'{metric_prefix}.memory:{mem}|g|#{tags}',
+                      '|', 'nc', '-u', '-w1', 'localhost', '8125'
+                  ], shell=True)
+        dest: /usr/local/bin/datadog-proxmox-vm-metrics.py
+        owner: root
+        group: root
+        mode: '0755'
+      when: enable_vm_monitoring
+
+    - name: Create cron job for VM metrics collection
+      cron:
+        name: "Datadog Proxmox VM metrics"
+        minute: "*/2"
+        job: "/usr/local/bin/datadog-proxmox-vm-metrics.py"
+        user: root
+      when: enable_vm_monitoring
+
+    - name: Configure storage pool monitoring
+      shell: |
+        for storage in $(pvesm status | tail -n +2 | awk '{print $1}'); do
+          TOTAL=$(pvesm status | grep "^${storage}" | awk '{print $4}')
+          USED=$(pvesm status | grep "^${storage}" | awk '{print $5}')
+          AVAIL=$(pvesm status | grep "^${storage}" | awk '{print $6}')
+
+          echo "proxmox.storage.${storage}.total:${TOTAL}|g|#storage:${storage}" | nc -u -w1 localhost 8125
+          echo "proxmox.storage.${storage}.used:${USED}|g|#storage:${storage}" | nc -u -w1 localhost 8125
+          echo "proxmox.storage.${storage}.available:${AVAIL}|g|#storage:${storage}" | nc -u -w1 localhost 8125
+        done
+      args:
+        executable: /bin/bash
+      when: enable_storage_monitoring
+      changed_when: false
+
+    - name: Create storage monitoring cron job
+      cron:
+        name: "Datadog Proxmox storage metrics"
+        minute: "*/5"
+        job: "/usr/local/bin/datadog-proxmox-storage-metrics.sh"
+        user: root
+      when: enable_storage_monitoring
+
+    - name: Restart Datadog agent
+      systemd:
+        name: datadog-agent
+        state: restarted
+
+    - name: Wait for agent to restart
+      wait_for:
+        timeout: 15
+
+    - name: Verify all checks are running
+      command: datadog-agent status
+      register: final_status
+      changed_when: false
+
+    - name: Display final configuration
+      debug:
+        msg:
+          - "========== Proxmox Datadog Monitoring Active =========="
+          - "VM monitoring: {{ 'Enabled' if enable_vm_monitoring else 'Disabled' }}"
+          - "Storage monitoring: {{ 'Enabled' if enable_storage_monitoring else 'Disabled' }}"
+          - "Cluster monitoring: {{ 'Enabled' if enable_cluster_monitoring else 'Disabled' }}"

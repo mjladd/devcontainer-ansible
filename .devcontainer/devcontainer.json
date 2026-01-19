@@ -1,0 +1,56 @@
+{
+	"name": "Python 3.13 Dev",
+	// use the Dockerfile in the current directory
+	// build context of one directory above ('..')
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "..",
+		"options": [
+			"--progress=plain"
+		]
+	},
+	// Mount cache volumes for better performance
+	"mounts": [
+		"source=uv-cache,target=/root/.cache/uv,type=volume",
+		"source=apt-cache,target=/var/cache/apt,type=volume",
+		"source=apt-lib,target=/var/lib/apt,type=volume",
+		"source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached"
+	],
+	"customizations": {
+        "settings": {
+            "python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+            "python.linting.enabled": true,
+            "python.linting.pylintEnabled": true,
+            "python.linting.mypyEnabled":true,
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4,
+            "editor.detectIndentation":false,
+            "editor.formatOnSave":false,
+            "[python]": {
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "charliermarsh.ruff",
+                "editor.codeActionsOnSave": {
+                    "source.fixAll": "explicit",
+                    "source.organizeImports": "explicit"
+                },
+                "notebook.formatOnSave.enabled": true,
+                "notebook.codeActionsOnSave": {
+                    "notebook.source.fixAll": "explicit",
+                    "notebook.source.organizeImports": "explicit"
+                }
+            },
+            "python.testing.pytestPath":"/workspace/.venv/bin/pytest",
+            "python.testing.pytestEnabled":true
+        },
+        "shutdownAction": "none",
+        "vscode": {
+            "extensions": [
+				"ms-vscode-remote.remote-containers",
+				"ms-python.python",
+				"ms-toolsai.jupyter",
+				"github.vscode-github-actions",
+				"charliermarsh.ruff"
+			]
+        }
+    }
+}

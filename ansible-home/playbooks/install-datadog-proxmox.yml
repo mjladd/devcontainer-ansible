@@ -1,0 +1,91 @@
+---
+- name: Install Datadog Agent on Proxmox
+  hosts: proxmox
+  become: yes
+
+  vars:
+    datadog_api_key: "{{ lookup('env', 'DD_API_KEY') }}"
+    datadog_site: "datadoghq.com"
+    datadog_tags:
+      - "env:production"
+      - "role:proxmox"
+      - "virtualization:proxmox"
+
+  tasks:
+    - name: Find files with Enterprise Repo
+      find:
+        paths: /etc/apt/
+        recurse: yes
+        patterns: '*.list'
+        contains: 'enterprise.proxmox.com'
+      register: enterprise_repo_files
+
+    - name: Disable Proxmox Enterprise Repositories
+      replace:
+        path: "{{ item.path }}"
+        regexp: '^deb\s+https://enterprise.proxmox.com'
+        replace: '# deb https://enterprise.proxmox.com'
+      loop: "{{ enterprise_repo_files.files }}"
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - curl
+          - gnupg
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Add Datadog GPG key
+      shell: |
+        curl -o /usr/share/keyrings/datadog-archive-keyring.gpg https://keys.datadoghq.com/DATADOG_APT_KEY_CURRENT.public
+        chmod a+r /usr/share/keyrings/datadog-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/datadog-archive-keyring.gpg
+
+    - name: Add Datadog repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/datadog-archive-keyring.gpg] https://apt.datadoghq.com/ stable 7"
+        state: present
+        filename: datadog
+
+    - name: Install Datadog Agent
+      apt:
+        name: datadog-agent
+        state: present
+        update_cache: yes
+
+    - name: Configure Datadog agent
+      template:
+        src: ../templates/datadog-proxmox.yaml.j2
+        dest: /etc/datadog-agent/datadog.yaml
+        owner: dd-agent
+        group: dd-agent
+        mode: '0640'
+      notify: restart datadog-agent
+
+    - name: Enable and start Datadog Agent
+      systemd:
+        name: datadog-agent
+        state: started
+        enabled: yes
+
+    - name: Wait for agent to start
+      wait_for:
+        timeout: 10
+
+    - name: Check agent status
+      command: datadog-agent status
+      register: agent_status
+      changed_when: false
+
+    - name: Display agent status
+      debug:
+        msg: "{{ agent_status.stdout_lines[:15] }}"
+
+  handlers:
+    - name: restart datadog-agent
+      systemd:
+        name: datadog-agent
+        state: restarted

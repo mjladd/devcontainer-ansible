@@ -1,0 +1,40 @@
+#!/bin/bash
+# Proxmox metrics collection using API
+
+# VM counts by status
+RUNNING_VMS=$(qm list 2>/dev/null | grep -c "running" || echo 0)
+STOPPED_VMS=$(qm list 2>/dev/null | grep -c "stopped" || echo 0)
+
+# Container counts
+RUNNING_CTS=$(pct list 2>/dev/null | grep -c "running" || echo 0)
+STOPPED_CTS=$(pct list 2>/dev/null | grep -c "stopped" || echo 0)
+
+# Cluster info
+if command -v pvecm &> /dev/null; then
+    CLUSTER_NODES=$(pvecm nodes 2>/dev/null | grep -c "^[0-9]" || echo 1)
+    CLUSTER_QUORUM=$(pvecm status 2>/dev/null | grep "Quorate:" | awk '{print $2}' || echo "Unknown")
+else
+    CLUSTER_NODES=1
+    CLUSTER_QUORUM="N/A"
+fi
+
+# Send to DogStatsD
+echo "proxmox.vms.running:${RUNNING_VMS}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+echo "proxmox.vms.stopped:${STOPPED_VMS}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+echo "proxmox.containers.running:${RUNNING_CTS}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+echo "proxmox.containers.stopped:${STOPPED_CTS}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+echo "proxmox.cluster.nodes:${CLUSTER_NODES}|g|#host:{{ inventory_hostname }}" | nc -u -w1 localhost 8125
+
+# Storage metrics
+for storage in $(pvesm status 2>/dev/null | tail -n +2 | awk '{print $1}'); do
+    STATUS=$(pvesm status 2>/dev/null | grep "^${storage}" | awk '{print $2}')
+    TOTAL=$(pvesm status 2>/dev/null | grep "^${storage}" | awk '{print $4}')
+    USED=$(pvesm status 2>/dev/null | grep "^${storage}" | awk '{print $5}')
+    AVAIL=$(pvesm status 2>/dev/null | grep "^${storage}" | awk '{print $6}')
+
+    if [ ! -z "$TOTAL" ]; then
+        echo "proxmox.storage.${storage}.total:${TOTAL}|g|#storage:${storage},status:${STATUS}" | nc -u -w1 localhost 8125
+        echo "proxmox.storage.${storage}.used:${USED}|g|#storage:${storage},status:${STATUS}" | nc -u -w1 localhost 8125
+        echo "proxmox.storage.${storage}.available:${AVAIL}|g|#storage:${storage},status:${STATUS}" | nc -u -w1 localhost 8125
+    fi
+done

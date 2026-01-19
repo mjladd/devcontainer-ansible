@@ -1,0 +1,44 @@
+[project]
+name = "devcontainer-ansible"
+version = "0.1.0"
+description = "Development container for Ansible"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ansible>=10.0.0",
+    "ansible-lint>=24.0.0",
+    "molecule>=24.0.0",
+    "jmespath>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true

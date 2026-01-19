@@ -1,0 +1,12 @@
+---
+- name: Setup complete Proxmox monitoring in Datadog
+  hosts: proxmox
+  become: yes
+
+  tasks:
+    - name: Include Datadog installation
+      include_tasks: ../roles/datadog/tasks/install.yml
+      when: not (lookup('file', '/etc/datadog-agent/datadog.yaml', errors='ignore'))
+
+    - name: Configure Proxmox monitoring
+      include_tasks: configure-datadog-proxmox-monitoring.yml
