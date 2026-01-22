@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] add nodes to datadog w/ agent
 - [ ] setup k8s
 
 ## ToC
@@ -149,4 +148,8 @@ ansible <hostname> -m command -a "crontab -l" --become
 
 # Tail Datadog logs
 ansible <hostname> -m shell -a "tail -n 50 /var/log/datadog/agent.log" --become
+
+# Install DD client on VMs
+export DD_API_KEY="XXXXXXXXXXXXX-key-here"
+ansible-playbook playbooks/install-datadog-agent.yml
 ```
