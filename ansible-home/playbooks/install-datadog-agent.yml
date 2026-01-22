@@ -1,0 +1,104 @@
+---
+- name: Install Datadog Agent on VMs
+  hosts: servers
+  become: yes
+
+  vars:
+    datadog_api_key: "{{ lookup('env', 'DD_API_KEY') }}"
+    datadog_site: "datadoghq.com"
+    datadog_agent_version: "1:7.*"
+    datadog_tags:
+      - "env:production"
+      - "role:server"
+
+  tasks:
+    - name: Validate Datadog API key is set
+      fail:
+        msg: "DD_API_KEY environment variable must be set"
+      when: datadog_api_key == ""
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - curl
+          - gnupg
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Remove existing Datadog keyring (for clean reinstall)
+      file:
+        path: /usr/share/keyrings/datadog-archive-keyring.gpg
+        state: absent
+      tags: [refresh-keys]
+
+    - name: Create keyring directory
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Datadog GPG keys
+      get_url:
+        url: "{{ item.url }}"
+        dest: "/tmp/{{ item.name }}"
+        mode: '0644'
+      loop:
+        - { name: 'DATADOG_APT_KEY_CURRENT.public', url: 'https://keys.datadoghq.com/DATADOG_APT_KEY_CURRENT.public' }
+        - { name: 'DATADOG_APT_KEY_06462314.public', url: 'https://keys.datadoghq.com/DATADOG_APT_KEY_06462314.public' }
+        - { name: 'DATADOG_APT_KEY_C0962C7D.public', url: 'https://keys.datadoghq.com/DATADOG_APT_KEY_C0962C7D.public' }
+        - { name: 'DATADOG_APT_KEY_F14F620E.public', url: 'https://keys.datadoghq.com/DATADOG_APT_KEY_F14F620E.public' }
+
+    - name: Import Datadog GPG keys to keyring
+      shell: |
+        cat /tmp/DATADOG_APT_KEY_CURRENT.public /tmp/DATADOG_APT_KEY_06462314.public /tmp/DATADOG_APT_KEY_C0962C7D.public /tmp/DATADOG_APT_KEY_F14F620E.public | gpg --dearmor -o /usr/share/keyrings/datadog-archive-keyring.gpg
+        chmod a+r /usr/share/keyrings/datadog-archive-keyring.gpg
+
+    - name: Add Datadog repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/datadog-archive-keyring.gpg] https://apt.datadoghq.com/ stable 7"
+        state: present
+        filename: datadog
+
+    - name: Install Datadog Agent
+      apt:
+        name: "datadog-agent={{ datadog_agent_version }}"
+        state: present
+        update_cache: yes
+
+    - name: Configure Datadog agent
+      template:
+        src: ../templates/datadog-agent.yaml.j2
+        dest: /etc/datadog-agent/datadog.yaml
+        owner: dd-agent
+        group: dd-agent
+        mode: '0640'
+      notify: restart datadog-agent
+
+    - name: Enable and start Datadog Agent
+      systemd:
+        name: datadog-agent
+        state: started
+        enabled: yes
+
+    - name: Wait for agent to start
+      wait_for:
+        timeout: 10
+
+    - name: Check agent status
+      command: datadog-agent status
+      register: agent_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display agent status summary
+      debug:
+        msg: "{{ agent_status.stdout_lines[:15] }}"
+      when: agent_status.rc == 0
+
+  handlers:
+    - name: restart datadog-agent
+      systemd:
+        name: datadog-agent
+        state: restarted

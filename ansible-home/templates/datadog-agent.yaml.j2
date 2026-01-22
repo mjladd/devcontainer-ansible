@@ -1,0 +1,23 @@
+api_key: {{ datadog_api_key }}
+site: {{ datadog_site }}
+hostname: {{ inventory_hostname }}
+
+tags:
+{% for tag in datadog_tags %}
+  - {{ tag }}
+{% endfor %}
+
+log_level: info
+logs_enabled: true
+
+# Process monitoring
+process_config:
+  enabled: 'true'
+
+# APM (Application Performance Monitoring)
+apm_config:
+  enabled: true
+
+# Network Performance Monitoring (optional - uncomment to enable)
+# network_config:
+#   enabled: true

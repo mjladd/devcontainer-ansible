@@ -11,6 +11,7 @@
 - [Roles vs Playbooks](#roles-vs-playbooks)
 - [Updates and Patching](#updates-and-patching)
 - [Proxmox Cleanup](#proxmox-cleanup)
+- [Generate Proxmox Tokens](#generate-proxmox-tokens)
 - [Setup Datadog on Proxmox](#setup-datadog-proxmox)
 
 ## Setup Ansible User
@@ -96,6 +97,25 @@ void({
  title: gettext('No valid subscription'),
 ```
 
+## Generate PROXMOX tokens
+
+Via Web UI:
+- Go to Datacenter → Permissions → API Tokens
+- Click "Add"
+- Select user (or create one like monitoring@pve)
+- Enter token ID (e.g., datadog)
+- Uncheck "Privilege Separation" if you want token to inherit user permissions
+- Copy the secret shown (only displayed once)
+
+2. Via CLI on Proxmox host:
+# Create user (if needed)
+pveum user add monitoring@pve --comment "Datadog monitoring"
+
+# Give read-only access
+pveum acl modify / --user monitoring@pve --role PVEAuditor
+
+# Create API token
+pveum user token add monitoring@pve datadog
 
 ## Setup Datadog on Proxmox
 
@@ -106,6 +126,8 @@ void({
 ansible-playbook playbooks/configure-datadog-proxmox-monitoring.yml
 
 # Advanced with API integration
+export PROXMOX_TOKEN_ID="monitoring@pve!datadog"
+export PROXMOX_TOKEN_SECRET="your-token-uuid"
 ansible-playbook playbooks/configure-datadog-proxmox-advanced.yml
 
 # Verify checks are running
