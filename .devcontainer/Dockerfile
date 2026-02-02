@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm
 
+# when pipling commands (ex. curl then | bash) the exit code is only from the last command
+# so if curl fails but bash exits with 0, Docker things the command succeeded
+# pipefail retuns the exit code of the first failing command.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
