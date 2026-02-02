@@ -4,6 +4,11 @@
 
 - [ ] setup k8s
 
+## Development
+
+There is a custom agent (doc-opt) that analyized the Dockerfile.
+    > "Use doc-opt to analyze the Dockerfile"
+
 ## ToC
 
 - [Setup Ansible User](#setup-ansible-user)
