@@ -1,4 +1,7 @@
 # syntax=docker/dockerfile:1
+# kubctl container
+FROM bitnami/kubectl:1.29 AS kubectl
+
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm
 
 # when pipling commands (ex. curl then | bash) the exit code is only from the last command
@@ -41,6 +44,9 @@ RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
     unzip "/tmp/CascadiaCode.zip" -d /usr/local/share/fonts/cascadiacode && \
     rm "/tmp/CascadiaCode.zip" && \
     fc-cache -fv
+
+# Copy kubectl from official image
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
 
 # Copy Starship config
 COPY .devcontainer/starship.toml /usr/local/etc/starship.toml
