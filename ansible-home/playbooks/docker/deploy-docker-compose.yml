@@ -1,0 +1,81 @@
+---
+- name: Deploy and start Docker Compose application
+  hosts: docker_servers
+  become: yes
+
+  vars:
+    # Define the source docker-compose file path (on control node)
+    compose_file_src: "docker-compose-ollama.yml"
+    # Define the destination directory on the target host
+    compose_dest_dir: "/opt/docker-compose-app"
+
+  tasks:
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create destination directory for docker-compose
+      file:
+        path: "{{ compose_dest_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy docker-compose.yml to target host
+      copy:
+        src: "{{ compose_file_src }}"
+        dest: "{{ compose_dest_dir }}/docker-compose.yml"
+        mode: '0644'
+      register: compose_file_changed
+
+    - name: Copy additional files (if any)
+      copy:
+        src: "{{ item }}"
+        dest: "{{ compose_dest_dir }}/"
+        mode: '0644'
+      with_fileglob:
+        - "{{ playbook_dir }}/files/{{ compose_project_name }}/*"
+      when: item is defined
+      ignore_errors: yes
+
+    - name: Pull Docker images defined in docker-compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dest_dir }}"
+        project_name: "{{ compose_project_name }}"
+        pull: always
+      register: pull_result
+      ignore_errors: yes
+
+    - name: Stop existing containers (if compose file changed)
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dest_dir }}"
+        project_name: "{{ compose_project_name }}"
+        state: stopped
+      when: compose_file_changed.changed
+
+    - name: Start Docker Compose services
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dest_dir }}"
+        project_name: "{{ compose_project_name }}"
+        state: present
+      register: compose_result
+
+    - name: Display Docker Compose service status
+      debug:
+        msg: "Docker Compose services are {{ compose_result.services | default('running') }}"
+
+    - name: Verify containers are running
+      community.docker.docker_container_info:
+        name: "{{ compose_project_name }}-*"
+      register: container_info
+      ignore_errors: yes
+
+    - name: Show running containers
+      command: docker ps --filter "name={{ compose_project_name }}"
+      register: docker_ps_output
+      changed_when: false
+
+    - name: Display running containers
+      debug:
+        var: docker_ps_output.stdout_lines
