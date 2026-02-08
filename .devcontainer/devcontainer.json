@@ -17,11 +17,6 @@
 		"source=apt-lib,target=/var/lib/apt,type=volume",
 		"source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached"
 	],
-    "features": {
-      "ghcr.io/devcontainers/features/github-cli:1": {
-        "version": "latest"
-    }
-  },
 	"customizations": {
         "settings": {
             "python.defaultInterpreterPath": "/workspace/.venv/bin/python",

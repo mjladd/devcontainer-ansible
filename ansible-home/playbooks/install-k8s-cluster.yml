@@ -1,0 +1,49 @@
+---
+# Main playbook to install and configure a complete Kubernetes cluster
+# Control plane: kc01
+# Worker nodes: kn01, kn02
+#
+# Usage: ansible-playbook -i inventory/inventory.ini playbooks/install-k8s-cluster.yml
+
+- name: Complete Kubernetes Cluster Installation
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Installing Kubernetes cluster
+      debug:
+        msg:
+          - "==========================================="
+          - "Kubernetes Cluster Setup"
+          - "==========================================="
+          - "Control Plane: kc01 (10.0.0.100)"
+          - "Worker Nodes:  kn01 (10.0.0.101)"
+          - "               kn02 (10.0.0.102)"
+          - "==========================================="
+
+- import_playbook: install-k8s-prerequisites.yml
+- import_playbook: setup-k8s-cluster.yml
+
+- name: Post-installation instructions
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display next steps
+      debug:
+        msg:
+          - "==========================================="
+          - "Kubernetes cluster installation complete!"
+          - "==========================================="
+          - ""
+          - "To access your cluster from the control machine:"
+          - "1. Run: ansible-playbook -i inventory/inventory.ini playbooks/get-kubeconfig.yml"
+          - "2. Copy the kubeconfig to your local machine"
+          - ""
+          - "Or SSH to the control plane node:"
+          - "  ssh ansible@10.0.0.100"
+          - "  kubectl get nodes"
+          - ""
+          - "Installed components:"
+          - "  - Kubernetes v1.29"
+          - "  - Containerd runtime"
+          - "  - Flannel CNI (10.244.0.0/16)"
+          - "==========================================="

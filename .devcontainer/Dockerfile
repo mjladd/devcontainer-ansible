@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # kubctl container
-FROM bitnami/kubectl:1.29 AS kubectl
+FROM rancher/kubectl:v1.29.15 AS kubectl
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm
 
@@ -35,8 +35,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         gcc \
         g++ \
         git \
-        zsh \
-        && rm -rf /var/lib/apt/lists/*
+        zsh
 
 # Install Cascadia Code Nerd Font
 RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
@@ -45,8 +44,8 @@ RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
     rm "/tmp/CascadiaCode.zip" && \
     fc-cache -fv
 
-# Copy kubectl from official image
-COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+# Copy binaries
+COPY --from=kubectl /bin/kubectl /usr/local/bin/kubectl
 
 # Copy Starship config
 COPY .devcontainer/starship.toml /usr/local/etc/starship.toml
@@ -74,6 +73,7 @@ RUN curl -sS https://starship.rs/install.sh | sh -s -- -y && \
     echo 'source $HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> "$TARGET_HOME/.zshrc" && \
     echo 'source $HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh' >> "$TARGET_HOME/.zshrc" && \
     echo 'eval "$(starship init zsh)"' >> "$TARGET_HOME/.zshrc" && \
+    echo 'export KUBECONFIG=/workspaces/devcontainer-ansible/ansible-home/playbooks/kubeconfig' >> "$TARGET_HOME/.zshrc" && \
     chown "$TARGET_USER":"$TARGET_USER" "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zsh" -R && \
     if command -v usermod >/dev/null 2>&1; then usermod -s /bin/zsh "$TARGET_USER" || true; fi
 
