@@ -7,10 +7,10 @@ services:
     ports:
       - "11434:11434"
     restart: unless-stopped
-     deploy:
-       resources:
-         reservations:
-           devices:
+    deploy:
+      resources:
+        reservations:
+          devices:
              - driver: nvidia
                count: all
                capabilities: [gpu]
