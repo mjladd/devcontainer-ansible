@@ -1,3 +1,36 @@
+# Environment variables and secrets
 .env
+.env.*
+
+# Kubernetes config files
 .kubeconfig
 kubeconfig
+*.kubeconfig
+
+# SSH keys and certificates
+*.pem
+*.key
+!*.pub.key
+*.crt
+*.cert
+*.p12
+*.pfx
+.ssh/
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Ansible vault and secrets
+*.vault
+vars/*secret*
+group_vars/*/vault*
+host_vars/*/vault*
+
+# Backup and temporary files
+*.bak
+*.swp
+*.tmp
+*~
