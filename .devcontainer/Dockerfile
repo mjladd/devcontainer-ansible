@@ -2,7 +2,7 @@
 # kubctl container
 FROM rancher/kubectl:v1.29.15 AS kubectl
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 # when pipling commands (ex. curl then | bash) the exit code is only from the last command
 # so if curl fails but bash exits with 0, Docker things the command succeeded
@@ -14,13 +14,14 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PROJECT_ENVIRONMENT=/workspace/.venv \
-    VIRTUAL_ENV=/workspace/.venv \
-    PATH="/workspace/.venv/bin:$PATH" \
+    UV_PROJECT_ENVIRONMENT=/workspaces/devcontainer-ansible/.venv \
+    VIRTUAL_ENV=/workspaces/devcontainer-ansible/.venv \
+    PATH=/workspaces/devcontainer-ansible/.venv/bin:$PATH \
     DEVCONTAINER=true \
     LC_ALL=C.UTF-8 \
     LANG=C.UTF-8 \
-    STARSHIP_CONFIG=/usr/local/etc/starship.toml
+    STARSHIP_CONFIG=/usr/local/etc/starship.toml \
+    KUBECONFIG=/workspaces/devcontainer-ansible/.kubeconfig
 
 # Install system dependencies with cache mount
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -32,10 +33,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         unzip \
         fontconfig \
         ca-certificates \
+        eza \
         gcc \
         g++ \
         git \
-        zsh
+        openssh-client \
+        zsh \
+        && rm -rf /var/lib/apt/lists/*
 
 # Install Cascadia Code Nerd Font
 RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
@@ -49,9 +53,10 @@ COPY --from=kubectl /bin/kubectl /usr/local/bin/kubectl
 
 # Copy Starship config
 COPY .devcontainer/starship.toml /usr/local/etc/starship.toml
+COPY zshrc /root/.zshrc
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /workspaces/devcontainer-ansible
 
 # Copy project files and install dependencies using uv sync
 COPY pyproject.toml uv.lock* ./

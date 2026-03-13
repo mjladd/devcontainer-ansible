@@ -1,0 +1,5 @@
+{
+    "python.defaultInterpreterPath": "/workspaces/devcontainer-ansible/.venv/bin/python",
+    "python.testing.pytestPath": "/workspaces/devcontainer-ansible/.venv/bin/pytest",
+    "python.testing.pytestEnabled": true
+}

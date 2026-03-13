@@ -60,21 +60,20 @@ sudo passwd -l ansible
 
 ```shell
 # Syntax check
-ansible-playbook playbooks/update-packages.yml --syntax-check
+ansible-playbook playbooks/system/system-update.yml --syntax-check
 
 # Dry run (check mode)
-ansible-playbook playbooks/update-packages.yml --check
+ansible-playbook playbooks/system/system-update.yml --check
 
 # Run on specific hosts
-ansible-playbook playbooks/update-packages.yml --limit kn01.consul,kn02.consul
+ansible-playbook playbooks/system/system-update.yml --limit kn01.consul,kn02.consul
 
 # Run with verbose output
-ansible-playbook playbooks/update-packages.yml -v
+ansible-playbook playbooks/system/system-update.yml -v
 
 # Run and auto-reboot if needed
-ansible-playbook playbooks/update-and-reboot.yml -e "auto_reboot=true"
+ansible-playbook playbooks/system/reboot-nodes.yml -e "auto_reboot=true"
 ```
-
 
 ## Proxmox Cleanup
 
@@ -127,12 +126,12 @@ pveum user token add monitoring@pve datadog
 
 ```shell
 # Basic Proxmox monitoring configuration
-ansible-playbook playbooks/configure-datadog-proxmox-monitoring.yml
+ansible-playbook playbooks/datadog/configure-datadog-proxmox-monitoring.yml
 
 # Advanced with API integration
 export PROXMOX_TOKEN_ID="monitoring@pve!datadog"
 export PROXMOX_TOKEN_SECRET="your-token-uuid"
-ansible-playbook playbooks/configure-datadog-proxmox-advanced.yml
+ansible-playbook playbooks/datadog/configure-datadog-proxmox-advanced.yml
 
 # Verify checks are running
 ansible <hostname> -m command -a "datadog-agent status" --become
