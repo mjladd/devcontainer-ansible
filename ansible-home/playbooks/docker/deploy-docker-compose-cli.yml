@@ -48,16 +48,8 @@
       environment:
         COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
 
-    - name: Stop and remove existing containers (if compose file changed)
-      command: docker compose down
-      args:
-        chdir: "{{ compose_dest_dir }}"
-      environment:
-        COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
-      when: compose_file_changed.changed
-
     - name: Start Docker Compose services
-      command: docker compose up -d
+      command: docker compose up -d --remove-orphans
       args:
         chdir: "{{ compose_dest_dir }}"
       environment:

@@ -10,6 +10,12 @@ services:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_ORIGINS=*
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         reservations:
@@ -19,7 +25,7 @@ services:
                capabilities: [gpu]
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:latest
     container_name: open-webui
     ports:
       - "3000:8080"
@@ -29,7 +35,8 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
     restart: unless-stopped
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
 volumes:
   ollama_data:
