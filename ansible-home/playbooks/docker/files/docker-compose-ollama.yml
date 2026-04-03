@@ -11,11 +11,11 @@ services:
       - OLLAMA_ORIGINS=*
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || wget -q -O /dev/null http://localhost:11434/api/version"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     deploy:
       resources:
         reservations:
@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
     depends_on:
       ollama:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   ollama_data:

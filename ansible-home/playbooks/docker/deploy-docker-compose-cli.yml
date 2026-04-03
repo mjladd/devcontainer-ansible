@@ -48,6 +48,28 @@
       environment:
         COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
 
+    - name: Stop any existing Docker Compose services
+      command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ compose_dest_dir }}"
+      environment:
+        COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
+      ignore_errors: yes
+
+    - name: Get container names from compose file
+      command: docker compose config --services
+      args:
+        chdir: "{{ compose_dest_dir }}"
+      environment:
+        COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
+      register: compose_services
+      changed_when: false
+
+    - name: Force remove any conflicting containers by name
+      command: docker rm -f {{ item }}
+      loop: "{{ compose_services.stdout_lines }}"
+      ignore_errors: yes
+
     - name: Start Docker Compose services
       command: docker compose up -d --remove-orphans
       args:
