@@ -1,0 +1,21 @@
+---
+- name: Configure journald
+  hosts: servers
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Set SystemMaxUse in journald.conf
+      ini_file:
+        path: /etc/systemd/journald.conf
+        section: Journal
+        option: SystemMaxUse
+        value: 500M
+        backup: yes
+      notify: restart journald
+
+  handlers:
+    - name: restart journald
+      systemd:
+        name: systemd-journald
+        state: restarted
