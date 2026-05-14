@@ -2,6 +2,9 @@
 # kubctl container
 FROM rancher/kubectl:v1.29.15 AS kubectl
 
+# Grab etcdctl
+FROM quay.io/coreos/etcd:v3.5.12 AS etcd
+
 FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 # when pipling commands (ex. curl then | bash) the exit code is only from the last command
@@ -30,6 +33,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         curl \
+        etcd-client \
         unzip \
         fontconfig \
         ca-certificates \
@@ -50,6 +54,7 @@ RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
 
 # Copy binaries
 COPY --from=kubectl /bin/kubectl /usr/local/bin/kubectl
+COPY --from=etcd /usr/local/bin/etcdctl /usr/local/bin/etcdctl
 
 # Copy Starship config
 COPY .devcontainer/starship.toml /usr/local/etc/starship.toml

@@ -1,9 +1,5 @@
 # README
 
-## TODO
-
-- [ ] setup k8s
-
 ## Development
 
 There is a custom agent (doc-opt) that analyized the Dockerfile.

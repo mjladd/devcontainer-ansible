@@ -28,4 +28,4 @@ if [[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
 fi
 
 eval "$(starship init zsh)"
-export KUBECONFIG=/workspaces/devcontainer-ansible/.kubeconfig
+export KUBECONFIG="/workspaces/devcontainer-ansible/.kubeconfig"
