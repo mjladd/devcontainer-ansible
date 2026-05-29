@@ -8,6 +8,9 @@ autoload -U compinit; compinit
 # setup eza
 alias ls='eza --icons --group-directories-first'
 
+# alias kubectl
+alias k='kubectl'
+
 autoload -Uz vcs_info
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' formats '(%F{yellow}%b%f%u%c) '
@@ -19,13 +22,12 @@ precmd() { vcs_info }
 setopt PROMPT_SUBST
 PROMPT='%F{cyan}%n%f:%F{blue}%~%f ${vcs_info_msg_0_}% '
 
-if [[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
-	source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-fi
-
 if [[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
 	source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
 
-eval "$(starship init zsh)"
-export KUBECONFIG="/workspaces/devcontainer-ansible/.kubeconfig"
+if [[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+	source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+fi
+
+command -v starship &>/dev/null && eval "$(starship init zsh)"

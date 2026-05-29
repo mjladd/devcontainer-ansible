@@ -1,0 +1,1 @@
+export KUBECONFIG="/workspaces/devcontainer-ansible/.kubeconfig"

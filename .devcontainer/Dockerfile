@@ -59,6 +59,7 @@ COPY --from=etcd /usr/local/bin/etcdctl /usr/local/bin/etcdctl
 # Copy Starship config
 COPY .devcontainer/starship.toml /usr/local/etc/starship.toml
 COPY zshrc /root/.zshrc
+COPY zshenv /root/.zshenv
 
 # Set working directory
 WORKDIR /workspaces/devcontainer-ansible
@@ -83,7 +84,6 @@ RUN curl -sS https://starship.rs/install.sh | sh -s -- -y && \
     echo 'source $HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> "$TARGET_HOME/.zshrc" && \
     echo 'source $HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh' >> "$TARGET_HOME/.zshrc" && \
     echo 'eval "$(starship init zsh)"' >> "$TARGET_HOME/.zshrc" && \
-    echo 'export KUBECONFIG=/workspaces/devcontainer-ansible/ansible-home/playbooks/kubeconfig' >> "$TARGET_HOME/.zshrc" && \
     chown "$TARGET_USER":"$TARGET_USER" "$TARGET_HOME/.zshrc" "$TARGET_HOME/.zsh" -R && \
     if command -v usermod >/dev/null 2>&1; then usermod -s /bin/zsh "$TARGET_USER" || true; fi
 
