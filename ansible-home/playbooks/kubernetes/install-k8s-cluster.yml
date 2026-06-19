@@ -1,7 +1,7 @@
 ---
 # Main playbook to install and configure a complete Kubernetes cluster
 # Control plane: kc01
-# Worker nodes: kn01, kn02
+# Worker nodes: kn01, kn02, kn03
 #
 # Usage: ansible-playbook -i inventory/inventory.ini playbooks/install-k8s-cluster.yml
 
@@ -18,6 +18,7 @@
           - "Control Plane: kc01 (10.0.0.100)"
           - "Worker Nodes:  kn01 (10.0.0.101)"
           - "               kn02 (10.0.0.102)"
+          - "               kn03 (10.0.0.106)"
           - "==========================================="
 
 - import_playbook: install-k8s-prerequisites.yml
@@ -45,5 +46,5 @@
           - "Installed components:"
           - "  - Kubernetes v1.29"
           - "  - Containerd runtime"
-          - "  - Flannel CNI (10.244.0.0/16)"
+          - "  - Calico CNI (192.168.0.0/16)"
           - "==========================================="

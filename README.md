@@ -5,6 +5,10 @@
 There is a custom agent (doc-opt) that analyized the Dockerfile.
     > "Use doc-opt to analyze the Dockerfile"
 
+### Nerd Fonts
+
+Glyphs (Starship prompt icons, etc.) are rendered by your host terminal emulator, not by anything inside the devcontainer. Install a Nerd Font (e.g. [Cascadia Code NF](https://github.com/ryanoasis/nerd-fonts/releases)) on your host machine and set it as your terminal's font — installing it inside the container has no effect on rendering.
+
 ## ToC
 
 - [Setup Ansible User](#setup-ansible-user)
@@ -38,9 +42,10 @@ Enter same passphrase again:
 Your identification has been saved in /Users/mladd/.ssh/ansible-user
 
 # Copy the public key to each managed node
-ssh-copy-id ansible@node1
-ssh-copy-id ansible@node2
-ssh-copy-id ansible@node3
+ssh-copy-id ansible@kc01.consul
+ssh-copy-id ansible@kn01.consul
+ssh-copy-id ansible@kn02.consul
+ssh-copy-id ansible@kn03.consul
 
 # lock password for ansible user on all nodes
 sudo passwd -l ansible

@@ -34,8 +34,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends \
         curl \
         etcd-client \
-        unzip \
-        fontconfig \
         ca-certificates \
         eza \
         gcc \
@@ -44,13 +42,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         openssh-client \
         zsh \
         && rm -rf /var/lib/apt/lists/*
-
-# Install Cascadia Code Nerd Font
-RUN mkdir -p /usr/local/share/fonts/cascadiacode && \
-    curl -fLo "/tmp/CascadiaCode.zip" "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/CascadiaCode.zip" && \
-    unzip "/tmp/CascadiaCode.zip" -d /usr/local/share/fonts/cascadiacode && \
-    rm "/tmp/CascadiaCode.zip" && \
-    fc-cache -fv
 
 # Copy binaries
 COPY --from=kubectl /bin/kubectl /usr/local/bin/kubectl

@@ -8,7 +8,7 @@ This Ansible configuration sets up a Kubernetes cluster for homelab learning pur
 - **Worker Nodes**: kn01 (10.0.0.101), kn02 (10.0.0.102)
 - **Kubernetes Version**: 1.29
 - **Container Runtime**: containerd
-- **CNI Plugin**: Flannel (Pod CIDR: 10.244.0.0/16)
+- **CNI Plugin**: Calico (Pod CIDR: 192.168.0.0/16)
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ ansible-playbook -i inventory/inventory.ini playbooks/install-k8s-cluster.yml
 This will:
 1. Install prerequisites on all nodes (containerd, kubeadm, kubelet, kubectl)
 2. Initialize the control plane on kc01
-3. Install Flannel CNI
+3. Install Calico CNI
 4. Join worker nodes kn01 and kn02 to the cluster
 5. Verify cluster status
 
@@ -101,8 +101,8 @@ Then re-run the installation playbook.
 ### Nodes not ready
 Check pod networking:
 ```bash
-kubectl get pods -n kube-flannel
-kubectl logs -n kube-flannel <pod-name>
+kubectl get pods -n calico-system
+kubectl logs -n calico-system <pod-name>
 ```
 
 ### Join command expired
