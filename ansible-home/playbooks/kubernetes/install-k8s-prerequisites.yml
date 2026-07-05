@@ -177,3 +177,18 @@
       systemd:
         name: kubelet
         enabled: yes
+
+- name: Install helm on control plane
+  hosts: k8s_control_plane
+  become: yes
+  tasks:
+    - name: Download Helm install script
+      get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get-helm-3.sh
+        mode: '0755'
+
+    - name: Install helm
+      command: /tmp/get-helm-3.sh
+      args:
+        creates: /usr/local/bin/helm
