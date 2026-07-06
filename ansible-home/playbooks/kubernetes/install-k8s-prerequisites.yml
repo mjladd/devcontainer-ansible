@@ -182,6 +182,12 @@
   hosts: k8s_control_plane
   become: yes
   tasks:
+    - name: Install git
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+
     - name: Download Helm install script
       get_url:
         url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
